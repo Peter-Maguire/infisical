@@ -1,12 +1,13 @@
 import { TPkiAcmeAccounts } from "@app/db/schemas/pki-acme-accounts";
 import { TPkiAcmeAuths } from "@app/db/schemas/pki-acme-auths";
 import { crypto } from "@app/lib/crypto/cryptography";
-import { BadRequestError, NotFoundError, UnauthorizedError } from "@app/lib/errors";
+import { BadRequestError, NotFoundError } from "@app/lib/errors";
 import { logger } from "@app/lib/logger";
 import { TCertificateProfileDALFactory } from "@app/services/certificate-profile/certificate-profile-dal";
 import * as x509 from "@peculiar/x509";
 
 import { KeyStorePrefixes, TKeyStoreFactory } from "@app/keystore/keystore";
+import { getConfig } from "@app/lib/config/env";
 import { isPrivateIp } from "@app/lib/ip/ipRange";
 import { ActorType } from "@app/services/auth/auth-type";
 import {
@@ -53,7 +54,8 @@ import {
   AcmeIdentifierType,
   AcmeOrderStatus,
   CreateAcmeAccountBodySchema,
-  ProtectedHeaderSchema
+  ProtectedHeaderSchema,
+  ValidDNSIdentifierRegex
 } from "./pki-acme-schemas";
 import {
   TAcmeOrderResource,
@@ -481,6 +483,21 @@ export const pkiAcmeServiceFactory = ({
     //       if we do, return the existing order
     // TODO: check the identifiers and see if are they even allowed for this profile.
     //       if not, we may be able to reject it early with an unsupportedIdentifier error.
+
+    // TODO: ideally, we should return an error with subproblems if we have multiple unsupported identifiers
+    if (payload.identifiers.some((identifier) => identifier.type !== AcmeIdentifierType.DNS)) {
+      throw new AcmeUnsupportedIdentifierError({ message: "Only DNS identifiers are supported" });
+    }
+    if (
+      payload.identifiers.some(
+        (identifier) =>
+          !ValidDNSIdentifierRegex.test(identifier.value) ||
+          isPrivateIp(identifier.value) ||
+          (!getConfig().isDevelopmentMode && identifier.value.toLowerCase() === "localhost")
+      )
+    ) {
+      throw new AcmeUnsupportedIdentifierError({ message: "Invalid DNS identifier" });
+    }
 
     const order = await acmeOrderDAL.transaction(async (tx) => {
       const account = (await acmeAccountDAL.findByProjectIdAndAccountId(profileId, accountId))!;
