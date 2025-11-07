@@ -1,6 +1,6 @@
 import { getConfig } from "@app/lib/config/env";
 import { z } from "zod";
-import { AcmeMalformedError } from "./pki-acme-errors";
+import { AcmeAccountDoesNotExistError } from "./pki-acme-errors";
 
 export const buildUrl = (profileId: string, path: string): string => {
   const appCfg = getConfig();
@@ -11,7 +11,7 @@ export const buildUrl = (profileId: string, path: string): string => {
 export const extractAccountIdFromKid = (kid: string, profileId: string): string => {
   const kidPrefix = buildUrl(profileId, "/accounts/");
   if (!kid.startsWith(kidPrefix)) {
-    throw new AcmeMalformedError({ message: "KID must start with the profile account URL" });
+    throw new AcmeAccountDoesNotExistError({ message: "KID must start with the profile account URL" });
   }
   return z.string().uuid().parse(kid.slice(kidPrefix.length));
 };
