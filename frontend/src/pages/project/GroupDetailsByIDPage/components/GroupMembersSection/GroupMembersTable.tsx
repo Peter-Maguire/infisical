@@ -23,7 +23,7 @@ import {
   THead,
   Tr
 } from "@app/components/v2";
-import { useProject } from "@app/context";
+import { useOrganization, useProject } from "@app/context";
 import { getProjectHomePage } from "@app/helpers/project";
 import {
   getUserTablePreference,
@@ -69,6 +69,7 @@ export const GroupMembersTable = ({ groupMembership }: Props) => {
     setUserTablePreference("projectGroupMembersTable", PreferenceKey.PerPage, newPerPage);
   };
 
+  const { isSubOrganization, currentOrg } = useOrganization();
   const { currentProject } = useProject();
 
   const { data: groupMemberships, isPending } = useListProjectGroupUsers({
@@ -136,7 +137,7 @@ export const GroupMembersTable = ({ groupMembership }: Props) => {
             text: "User privilege assumption has started"
           });
 
-          const url = getProjectHomePage(currentProject.type, currentProject.environments);
+          const url = `${getProjectHomePage(currentProject.type, currentProject.environments)}${isSubOrganization ? `?subOrganization=${currentOrg.slug}` : ""}`;
           window.location.href = url.replace("$projectId", currentProject.id);
         }
       }
